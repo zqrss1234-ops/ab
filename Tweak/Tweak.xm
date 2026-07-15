@@ -36,6 +36,54 @@ void BHSetGlitchAnimationsDisabled(BOOL disabled);
 + (float)tapsPerSecondForInterval:(float)interval;
 @end
 
+@implementation Speed
++ (float)defaultInterval { return 0.100f; }
++ (float)minimumInterval { return 0.030f; }
++ (float)maximumInterval { return 0.100f; }
++ (float)normalizedInterval:(float)interval { return MIN(MAX(interval, [self minimumInterval]), [self maximumInterval]); }
++ (float)presetIntervalAtIndex:(NSInteger)index {
+    static const float presets[] = {0.100f, 0.050f, 0.030f};
+    static const NSInteger presetCount = sizeof(presets) / sizeof(presets[0]);
+    if (index < 0 || index >= presetCount) return [self defaultInterval];
+    return presets[index];
+}
++ (float)tapsPerSecondForInterval:(float)interval {
+    return 1.0f / [self normalizedInterval:interval];
+}
+@end
+
+static volatile BOOL glitchAnimationsDisabled = NO;
+
+BOOL BHGlitchAnimationsDisabled(void) { return glitchAnimationsDisabled; }
+void BHSetGlitchAnimationsDisabled(BOOL disabled) { glitchAnimationsDisabled = disabled; }
+
+%hook MBProgressHUD
+- (void)hideAnimated:(BOOL)animated afterDelay:(double)delay {
+    if (BHGlitchAnimationsDisabled()) { delay = 0; animated = NO; }
+    %orig(animated, delay);
+}
+- (void)hideAnimated:(BOOL)animated {
+    if (BHGlitchAnimationsDisabled()) { animated = NO; }
+    %orig(animated);
+}
+- (void)animateIn:(BOOL)animated withType:(long long)type completion:(id)completion {
+    if (BHGlitchAnimationsDisabled()) { animated = NO; type = 0; }
+    %orig(animated, type, completion);
+}
+- (long long)animationType {
+    if (BHGlitchAnimationsDisabled()) return 0;
+    return %orig;
+}
+- (void)setAnimationType:(long long)type {
+    if (BHGlitchAnimationsDisabled()) { type = 0; }
+    %orig(type);
+}
+- (void)hideUsingAnimation:(BOOL)animated {
+    if (BHGlitchAnimationsDisabled()) { animated = NO; }
+    %orig(animated);
+}
+%end
+
 static inline UIWindow *ylt_keyWindow(void) {
     if (@available(iOS 13, *)) {
         for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
@@ -62,16 +110,16 @@ static inline UIWindow *ylt_keyWindow(void) {
 #define NUM_MICS 10
 
 static const CGFloat oldMicPositions[NUM_MICS][2] = {
-    {0.9, 0.22}, // مايك 1
-    {0.7, 0.22}, // مايك 2
-    {0.5, 0.22}, // مايك 3
-    {0.3, 0.22}, // مايك 4
-    {0.1, 0.22}, // مايك 5
-    {0.9, 0.32}, // مايك 6
-    {0.7, 0.32}, // مايك 7
-    {0.5, 0.32}, // مايك 8
-    {0.3, 0.32}, // مايك 9
-    {0.1, 0.32}  // مايك 10
+    {0.9, 0.22},
+    {0.7, 0.22},
+    {0.5, 0.22},
+    {0.3, 0.22},
+    {0.1, 0.22},
+    {0.9, 0.32},
+    {0.7, 0.32},
+    {0.5, 0.32},
+    {0.3, 0.32},
+    {0.1, 0.32}
 };
 
 static const CGFloat newMicPositions[NUM_MICS][2] = {
