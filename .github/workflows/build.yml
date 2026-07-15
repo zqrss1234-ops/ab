@@ -1,0 +1,64 @@
+name: Build & Sign
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          brew install ldid dpkg xz make
+
+      - name: Install Theos
+        run: |
+          sudo mkdir -p /opt/theos
+          sudo chown $USER:staff /opt/theos
+          git clone --recursive https://github.com/theos/theos.git /opt/theos
+
+      - name: Setup iOS SDK
+        run: |
+          mkdir -p /opt/theos/sdks
+          curl -fsSL https://github.com/theos/sdks/archive/refs/heads/master.zip -o /tmp/sdks.zip
+          unzip -qo /tmp/sdks.zip -d /tmp/sdks
+          cp /tmp/sdks/sdks-master/*.sdk /opt/theos/sdks/ 2>/dev/null || true
+
+      - name: Create Libraries Stubs
+        run: |
+          mkdir -p Libraries
+          cat > Libraries/LicenseManager.xcconfig << 'XCCONFIG'
+          LICENSE_SERVER_URL = http://localhost:3000
+          XCCONFIG
+          cat > Libraries/LicenseManager.h << 'HEADER'
+          #import <Foundation/Foundation.h>
+          @interface LicenseManager : NSObject
+          + (instancetype)sharedInstance;
+          - (BOOL)isLicenseValid;
+          - (void)checkLicense;
+          @end
+          HEADER
+          cat > Libraries/LicenseManager.m << 'SOURCE'
+          #import "LicenseManager.h"
+          @implementation LicenseManager
+          + (instancetype)sharedInstance { static id s = nil; static dispatch_once_t t; dispatch_once(&t, ^{ s = [[self alloc] init]; }); return s; }
+          - (BOOL)isLicenseValid { return YES; }
+          - (void)checkLicense {}
+          @end
+          SOURCE
+
+      - name: Build & Package
+        run: |
+          export THEOS=/opt/theos
+          make clean || true
+          make package
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: abdulilah-tweak
+          path: packages/*.deb
