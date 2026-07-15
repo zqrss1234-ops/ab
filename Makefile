@@ -1,5 +1,5 @@
 export TARGET = iphone:clang:latest:7.0
-export ARCHS = arm64 arm64e
+export ARCHS = arm64
 
 include Libraries/LicenseManager.xcconfig
 
