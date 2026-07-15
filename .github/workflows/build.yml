@@ -51,22 +51,12 @@ jobs:
           @end
           SOURCE
 
-      - name: Build Tweak
+      - name: Build & Package
         run: |
           export THEOS=/opt/theos
           export abdulilah_LDFLAGS="-Wl,-undefined,dynamic_lookup"
           make clean || true
-          make
-
-      - name: Package .deb
-        run: |
-          mkdir -p package/DEBIAN
-          cp control package/DEBIAN/
-          mkdir -p package/Library/MobileSubstrate/DynamicLibraries
-          cp .theos/obj/debug/abdulilah.dylib package/Library/MobileSubstrate/DynamicLibraries/
-          cp abdulilah.plist package/Library/MobileSubstrate/DynamicLibraries/
-          mkdir -p packages
-          dpkg-deb -b package packages/com.abdulilah.yallalite_2.0_iphoneos-arm.deb
+          FAKEROOT="" make package
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
